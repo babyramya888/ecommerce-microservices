@@ -1,0 +1,146 @@
+version: '3.9'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: ecommerce-mongodb
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongodb_data:/data/db
+
+  dotnet-payment-service:
+    build: ./dotnet-payment-service
+    container_name: dotnet-payment-service
+    ports:
+    # Host Port :container port
+      - '8082:8080'
+
+  dotnet-notification-service:
+    build: ./dotnet-notification-service
+    container_name: dotnet-notification-service
+    ports:
+      - '8083:8080'
+
+  quarkus-auth-service:
+    build: ./quarkus-auth-service
+    container_name: quarkus-auth-service
+    ports:
+      - '8084:8081'
+    environment:
+      QUARKUS_MONGODB_CONNECTION_STRING: mongodb://mongodb:27017
+      QUARKUS_MONGODB_DATABASE: auth_db
+      SMALLRYE_JWT_SIGN_KEY_LOCATION: file:///app/privateKey.pem
+      MP_JWT_VERIFY_PUBLICKEY_LOCATION: file:///app/publicKey.pem
+    volumes:
+      - ./quarkus-auth-service/src/main/resources/privateKey.pem:/app/privateKey.pem
+      - ./quarkus-auth-service/src/main/resources/publicKey.pem:/app/publicKey.pem
+
+  quarkus-product-service:
+    build: ./quarkus-product-service
+    container_name: quarkus-product-service
+    ports:
+      - '8085:8082'
+    environment:
+      QUARKUS_MONGODB_CONNECTION_STRING: mongodb://mongodb:27017
+      QUARKUS_MONGODB_DATABASE: product_db
+      MP_JWT_VERIFY_PUBLICKEY_LOCATION: file:///app/publicKey.pem
+    volumes:
+      - ./quarkus-product-service/src/main/resources/publicKey.pem:/app/publicKey.pem
+
+  quarkus-cart-service:
+    build: ./quarkus-cart-service
+    container_name: quarkus-cart-service
+    ports:
+      - '8086:8083'
+    environment:
+      QUARKUS_MONGODB_CONNECTION_STRING: mongodb://mongodb:27017
+      QUARKUS_MONGODB_DATABASE: cart_db
+      PRODUCT_API_URL: http://quarkus-product-service:8082
+      MP_JWT_VERIFY_PUBLICKEY_LOCATION: file:///app/publicKey.pem
+    volumes:
+      - ./quarkus-cart-service/src/main/resources/publicKey.pem:/app/publicKey.pem
+
+  quarkus-order-service:
+    build: ./quarkus-order-service
+    container_name: quarkus-order-service
+    ports:
+      - '8087:8084'
+    environment:
+      QUARKUS_MONGODB_CONNECTION_STRING: mongodb://mongodb:27017
+      QUARKUS_MONGODB_DATABASE: order_db
+      CART_API_URL: http://quarkus-cart-service:8083
+      PRODUCT_API_URL: http://quarkus-product-service:8082
+      NOTIFICATION_API_URL: http://dotnet-notification-service:8080
+      MP_JWT_VERIFY_PUBLICKEY_LOCATION: file:///app/publicKey.pem
+    volumes:
+      - ./quarkus-order-service/src/main/resources/publicKey.pem:/app/publicKey.pem
+
+volumes:
+  mongodb_data:
+
+  
+# Browser opens a connection → localhost:8085 → Docker forwards it → container:8082
+# Container writes its response → straight back down that same pipe → Browser
+
+
+
+# **No, absolutely not!** 
+
+# The `application.properties` file should **only** know about the *internal* port (the port inside the container). It should have zero knowledge of the external ports.
+
+# Here is why:
+
+# ### The "Two Separate Worlds" Rule
+
+# Remember, a Docker container is like a separate computer. The application running inside it is completely blind to what is happening on your actual computer (the host machine).
+
+# ```yaml
+# # In docker-compose.yml
+# ports:
+#   - '8085:8080' 
+# #   ^         ^
+# #   |         |
+# # External   Internal (Application ONLY knows about this one)
+# ```
+
+# * **What the application knows:** "I am a Quarkus app, and I am going to start a web server on port `8080` inside my container." (Configured in `application.properties`)
+# * **What Docker knows:** "I will take any traffic hitting my host machine's port `8085` and silently funnel it into the container's port `8080`." (Configured in `docker-compose.yml`)
+
+# The Quarkus application has no idea that `8085` even exists!
+
+# ---
+
+# ### The Office Switchboard Analogy
+
+# Imagine you work in an office building:
+
+# 1. **You (The Application):** You sit at your desk. Your desk has a specific extension number: **8080**. This is your `application.properties`. You only care about answering calls that come to extension 8080.
+# 2. **The Building Switchboard (Docker Compose):** The switchboard tells the outside world: *"If you want to reach the Sales Department, dial **8085** on your phone."* When someone dials 8085, the switchboard routes it to your desk at extension 8080.
+
+# You (the application) do not go to the switchboard and say, "Hey, tell people to dial 8085 to reach me." You just sit at desk 8080 and let the switchboard (`docker-compose.yml`) do the mapping.
+
+# ---
+
+# ### What your `application.properties` should look like:
+
+# ```properties
+# # ONLY put the internal port here
+# quarkus.http.port=8080
+
+# # NEVER put external ports here
+# # quarkus.http.external-port=8085  <-- THIS IS WRONG, DON'T DO THIS
+# ```
+
+# ### What your `docker-compose.yml` should look like:
+
+# ```yaml
+#   quarkus-product-service:
+#     # ... build stuff ...
+#     ports:
+#       - '8085:8080'  # Docker handles this mapping entirely!
+# ```
+
+# **Summary Rule of Thumb:**
+# * **`application.properties`** = "What port do I listen on *inside* my container?"
+# * **`docker-compose.yml`** = "How do I connect the *outside* world to my container?"

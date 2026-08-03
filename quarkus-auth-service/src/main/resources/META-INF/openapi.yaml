@@ -1,0 +1,132 @@
+openapi: 3.0.3
+info:
+  title: Auth Service API
+  description: Authentication and authorization service. Handles customer registration, login, and JWT token generation using RSA keys.
+  version: 1.0.0
+  contact:
+    name: Ecommerce Team
+  x-service-port: 8081
+  x-database: auth_db
+  x-framework: Quarkus
+servers:
+  - url: http://localhost:8081
+    description: Local development
+  - url: http://quarkus-auth-service:8081
+    description: Docker internal
+paths:
+  /api/auth/register:
+    post:
+      summary: Register a new customer
+      description: Creates a new customer account with bcrypt-hashed password and returns a signed JWT token.
+      operationId: register
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Customer registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/login:
+    post:
+      summary: Login an existing customer
+      description: Authenticates a customer against bcrypt-hashed password and returns a signed JWT token.
+      operationId: login
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid email or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - fullName
+      properties:
+        email:
+          type: string
+          format: email
+          example: customer@example.com
+        password:
+          type: string
+          format: password
+          example: MySecurePass123
+        fullName:
+          type: string
+          example: John Doe
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: customer@example.com
+        password:
+          type: string
+          format: password
+          example: MySecurePass123
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: Signed RSA JWT token
+          example: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+        expiresIn:
+          type: integer
+          description: Token expiration in seconds
+          example: 3600
+        customerId:
+          type: string
+          example: 64b7f1e2a8d2c910e4b5a3d7
+        email:
+          type: string
+          format: email
+          example: customer@example.com
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Email already registered
+        status:
+          type: integer
+          example: 409
+        timestamp:
+          type: string
+          format: date-time

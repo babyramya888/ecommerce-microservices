@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "vIGk4Fv256qLhE4k/1jCTimkmhJqvLTsqSP24F3LF6Q=",
+  "Source": "dotnet-notification-service",
+  "BasePath": "_content/dotnet-notification-service",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}

@@ -1,0 +1,13 @@
+com/ecommerce/order/OrderService.class
+com/ecommerce/order/event/OrderPlacedEvent.class
+com/ecommerce/order/client/CartServiceClient.class
+com/ecommerce/order/client/CartView$CartItemView.class
+com/ecommerce/order/client/CartView.class
+com/ecommerce/order/OutboxEvent.class
+com/ecommerce/order/OrderResource.class
+com/ecommerce/order/Order$OrderItem.class
+com/ecommerce/order/OrderEventProducer.class
+com/ecommerce/order/Order.class
+com/ecommerce/order/OrderService$ReducedItem.class
+com/ecommerce/order/client/ProductServiceClient.class
+com/ecommerce/order/client/ProductView.class

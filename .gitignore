@@ -1,0 +1,25 @@
+# Quarkus target directory
+quarkus-*/target/
+quarkus-*/.project
+quarkus-*/.classpath
+
+# .NET bin/obj
+dotnet-*/bin/
+dotnet-*/obj/
+
+# Docker
+*.pid
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.project
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Maven wrapper
+.quarkus/

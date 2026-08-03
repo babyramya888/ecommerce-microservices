@@ -1,0 +1,234 @@
+openapi: 3.0.3
+info:
+  title: Product Service API
+  description: Product catalog and inventory management service. Handles product listing, creation, and stock operations (reduce/restore).
+  version: 1.0.0
+  contact:
+    name: Ecommerce Team
+  x-service-port: 8082
+  x-database: product_db
+  x-framework: Quarkus
+  x-dependencies:
+    - quarkus-cart-service (calls reduce-stock during checkout)
+    - quarkus-order-service (calls reduce-stock/restore-stock)
+servers:
+  - url: http://localhost:8082
+    description: Local development
+  - url: http://quarkus-product-service:8082
+    description: Docker internal
+security:
+  - bearerAuth: []
+tags:
+  - name: Products
+    description: Product catalog operations
+  - name: Stock
+    description: Stock management operations
+paths:
+  /api/products:
+    get:
+      summary: List all products
+      description: Retrieves all products available in the catalog. No authentication required.
+      operationId: listAllProducts
+      tags:
+        - Products
+      responses:
+        '200':
+          description: List of all products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductView'
+    post:
+      summary: Create a new product
+      description: Creates a new product in the catalog. Requires authenticated JWT with customer role.
+      operationId: createProduct
+      tags:
+        - Products
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductView'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/products/{id}:
+    get:
+      summary: Get product by ID
+      description: Retrieves a single product by its MongoDB ObjectId. No authentication required.
+      operationId: getProductById
+      tags:
+        - Products
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: MongoDB ObjectId of the product
+      responses:
+        '200':
+          description: Product found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductView'
+        '400':
+          description: Invalid product ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/products/{id}/reduce-stock:
+    put:
+      summary: Reduce product stock
+      description: Reduces the stock quantity of a product. Called by Cart Service (during checkout validation) and Order Service (during order placement).
+      operationId: reduceStock
+      tags:
+        - Stock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Product ID (MongoDB ObjectId)
+        - name: quantity
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Number of units to reduce
+      responses:
+        '200':
+          description: Stock reduced successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductView'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Insufficient stock for the requested quantity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/products/{id}/restore-stock:
+    put:
+      summary: Restore product stock
+      description: Restores the stock quantity of a product. Called by Order Service for Saga compensation when order placement fails.
+      operationId: restoreStock
+      tags:
+        - Stock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Product ID (MongoDB ObjectId)
+        - name: quantity
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Number of units to restore
+      responses:
+        '200':
+          description: Stock restored successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductView'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ProductRequest:
+      type: object
+      required:
+        - name
+        - price
+        - stockQuantity
+      properties:
+        name:
+          type: string
+          example: Wireless Headphones
+        description:
+          type: string
+          example: Noise-cancelling Bluetooth headphones
+        price:
+          type: number
+          format: double
+          minimum: 0.01
+          example: 29.99
+        stockQuantity:
+          type: integer
+          minimum: 0
+          example: 150
+        category:
+          type: string
+          example: Electronics
+    ProductView:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 64b7f1e2a8d2c910e4b5a3d8
+        name:
+          type: string
+          example: Wireless Headphones
+        price:
+          type: number
+          format: double
+          example: 29.99
+        stockQuantity:
+          type: integer
+          example: 150
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Product not found
+        status:
+          type: integer
+          example: 404
+        timestamp:
+          type: string
+          format: date-time

@@ -1,0 +1,145 @@
+openapi: 3.0.3
+info:
+  title: Ecommerce API Gateway (APIM)
+  description: |
+    Azure API Management gateway definition for the Ecommerce Microservices application.
+    
+    This is the **external-facing API facade** exposed through Azure API Management.
+    It aggregates all backend microservice APIs behind a single unified endpoint.
+    
+    ## Backend Services
+    
+    Each service exposes its own OpenAPI spec internally:
+    
+    | Service | Framework | Port | OpenAPI Endpoint |
+    |---------|-----------|------|-----------------|
+    | Auth | Quarkus | 8081 | /q/openapi |
+    | Product | Quarkus | 8082 | /q/openapi |
+    | Cart | Quarkus | 8083 | /q/openapi |
+    | Order | Quarkus | 8084 | /q/openapi |
+    | Payment | .NET 8 | 8080 | /swagger/v1/swagger.json |
+    | Notification | .NET 8 | 8080 | /swagger/v1/swagger.json |
+    
+    ## Request Flow
+    
+    1. Client sends authenticated request to APIM with JWT Bearer token
+    2. APIM validates JWT (policy: validate-jwt) and applies rate limiting
+    3. APIM forwards request to the appropriate backend service
+    4. Service-to-service calls propagate the Authorization header
+    
+    ## Notes
+    
+    - Auth Service does NOT require authentication (open endpoints: /register, /login)
+    - Product listing (GET /products) is publicly accessible
+    - All other endpoints require a valid JWT with "customer" role
+  version: 1.0.0
+  contact:
+    name: Ecommerce Team
+  x-backend-services:
+    - name: quarkus-auth-service
+      framework: Quarkus
+      port: 8081
+      openapi: /q/openapi
+      auth: false
+    - name: quarkus-product-service
+      framework: Quarkus
+      port: 8082
+      openapi: /q/openapi
+      auth: true
+    - name: quarkus-cart-service
+      framework: Quarkus
+      port: 8083
+      openapi: /q/openapi
+      auth: true
+    - name: quarkus-order-service
+      framework: Quarkus
+      port: 8084
+      openapi: /q/openapi
+      auth: true
+    - name: dotnet-payment-service
+      framework: .NET 8
+      port: 8080
+      openapi: /swagger/v1/swagger.json
+      auth: false
+    - name: dotnet-notification-service
+      framework: .NET 8
+      port: 8080
+      openapi: /swagger/v1/swagger.json
+      auth: false
+servers:
+  - url: https://ecommerce-api.azure-api.net
+    description: Azure API Management gateway
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Gateway health check (proxied to backend services)
+      operationId: health
+      responses:
+        '200':
+          description: APIM gateway is operational
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Healthy"
+                  service:
+                    type: string
+                    example: apim-gateway
+                  timestamp:
+                    type: string
+                    format: date-time
+    x-apim-policies:
+      - name: rate-limit
+        rate: 100
+        per: minute
+      - name: cors
+        allowed-origins:
+          - "*"
+      - name: validate-jwt
+        enabled: false
+  /auth/health:
+    get:
+      summary: Auth service health
+      x-forward-to: http://quarkus-auth-service:8081/health
+      responses:
+        '200':
+          description: Auth service health
+  /products/health:
+    get:
+      summary: Product service health
+      x-forward-to: http://quarkus-product-service:8082/health
+      responses:
+        '200':
+          description: Product service health
+  /cart/health:
+    get:
+      summary: Cart service health
+      x-forward-to: http://quarkus-cart-service:8083/health
+      responses:
+        '200':
+          description: Cart service health
+  /orders/health:
+    get:
+      summary: Order service health
+      x-forward-to: http://quarkus-order-service:8084/health
+      responses:
+        '200':
+          description: Order service health
+  /payment/health:
+    get:
+      summary: Payment service health
+      x-forward-to: http://dotnet-payment-service:8080/health
+      responses:
+        '200':
+          description: Payment service health
+  /notifications/health:
+    get:
+      summary: Notification service health
+      x-forward-to: http://dotnet-notification-service:8080/health
+      responses:
+        '200':
+          description: Notification service health

@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "Itu4eyTFTPGw7Wr1ltuPqj/9l28mNyZlsiuYH1H1ndQ=",
+  "Source": "dotnet-payment-service",
+  "BasePath": "_content/dotnet-payment-service",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}

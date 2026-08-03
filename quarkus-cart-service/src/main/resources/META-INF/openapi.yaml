@@ -1,0 +1,170 @@
+openapi: 3.0.3
+info:
+  title: Cart Service API
+  description: |
+    Shopping cart management service. Handles cart creation, item addition/removal with circuit breaker protection and stock validation against the Product Service.
+    - Depends on: Product Service (for stock verification)
+    - Resilience patterns: Retry, Circuit Breaker, Fallback
+  version: 1.0.0
+  contact:
+    name: Ecommerce Team
+  x-service-port: 8083
+  x-database: cart_db
+  x-framework: Quarkus
+  x-calls: Product Service (via REST Client with circuit breaker)
+servers:
+  - url: http://localhost:8083
+    description: Local development
+  - url: http://quarkus-cart-service:8083
+    description: Docker internal
+security:
+  - bearerAuth: []
+tags:
+  - name: Cart
+    description: Shopping cart operations
+paths:
+  /api/cart:
+    get:
+      summary: Get current cart
+      description: Retrieves the authenticated customer's shopping cart. Creates one if it doesn't exist.
+      operationId: getCartItems
+      responses:
+        '200':
+          description: The customer's cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Clear cart
+      description: Removes all items from the authenticated customer's cart.
+      operationId: clearCart
+      responses:
+        '204':
+          description: Cart cleared successfully
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/cart/items:
+    post:
+      summary: Add item to cart
+      description: |
+        Adds a product to the cart. 
+        - Validates product existence and stock via Product Service with circuit breaker
+        - If Product Service is unavailable, returns 503
+        - If insufficient stock, returns 409
+      operationId: addItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddItemRequest'
+      responses:
+        '200':
+          description: Item added to cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '409':
+          description: Insufficient stock
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Product service is currently unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/cart/items/{productId}:
+    delete:
+      summary: Remove item from cart
+      description: Removes a specific product from the cart.
+      operationId: removeItem
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Product ID to remove from cart
+      responses:
+        '200':
+          description: Item removed from cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    AddItemRequest:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: string
+          example: 64b7f1e2a8d2c910e4b5a3d8
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+    Cart:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 64b7f2a1a8d2c910e4b5a3e9
+        customerId:
+          type: string
+          example: 64b7f1e2a8d2c910e4b5a3d7
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+    CartItem:
+      type: object
+      properties:
+        productId:
+          type: string
+          example: 64b7f1e2a8d2c910e4b5a3d8
+        productName:
+          type: string
+          example: Wireless Headphones
+        price:
+          type: number
+          format: double
+          example: 29.99
+        quantity:
+          type: integer
+          example: 2
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Insufficient stock for Wireless Headphones
+        status:
+          type: integer
+          example: 409
+        timestamp:
+          type: string
+          format: date-time

@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quarkus-order-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: quarkus-order-service
+  template:
+    metadata:
+      labels:
+        app: quarkus-order-service
+    spec:
+      containers:
+        - name: quarkus-order-service
+          image: quarkus-order-service:latest
+          ports:
+            - containerPort: 8084
+          env:
+            - name: QUARKUS_MONGODB_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-secret
+                  key: connection-string
+            - name: QUARKUS_MONGODB_DATABASE
+              value: order_db
+            - name: CART_API_URL
+              value: http://quarkus-cart-service:8083
+            - name: PRODUCT_API_URL
+              value: http://quarkus-product-service:8082
+            - name: NOTIFICATION_API_URL
+              value: http://dotnet-notification-service:8080
+            - name: MP_JWT_VERIFY_PUBLICKEY_LOCATION
+              value: file:///app/publicKey.pem
+          volumeMounts:
+            - name: jwt-keys
+              mountPath: /app/
+          imagePullPolicy: Always
+      volumes:
+        - name: jwt-keys
+          secret:
+            secretName: jwt-keys
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quarkus-order-service
+spec:
+  selector:
+    app: quarkus-order-service
+  ports:
+    - port: 8084
+      targetPort: 8084
+  type: ClusterIP

@@ -1,0 +1,125 @@
+name: CI/CD Pipeline (Azure)
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  REGISTRY: ${{ secrets.ACR_LOGIN_SERVER }}
+  IMAGE_NAME: ${{ github.repository }}
+  ACR_NAME: ${{ secrets.ACR_NAME }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    strategy:
+      matrix:
+        service:
+          - name: quarkus-auth-service
+            path: ./quarkus-auth-service
+            image: ecommerce-auth
+            port: 8081
+          - name: quarkus-product-service
+            path: ./quarkus-product-service
+            image: ecommerce-product
+            port: 8082
+          - name: quarkus-cart-service
+            path: ./quarkus-cart-service
+            image: ecommerce-cart
+            port: 8083
+          - name: quarkus-order-service
+            path: ./quarkus-order-service
+            image: ecommerce-order
+            port: 8084
+          - name: dotnet-payment-service
+            path: ./dotnet-payment-service
+            image: ecommerce-payment
+            port: 8080
+          - name: dotnet-notification-service
+            path: ./dotnet-notification-service
+            image: ecommerce-notification
+            port: 8080
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ matrix.service.image }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=${{ github.ref_name }}
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service.path }}
+          file: ${{ matrix.service.path }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  deploy-to-aks:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Set context to AKS cluster
+        uses: azure/aks-set-context@v4
+        with:
+          creds: ${{ secrets.AKS_CREDENTIALS }}
+
+      - name: Deploy to AKS
+        run: |
+          TAG=${{ github.sha }}
+          REGISTRY=${{ env.REGISTRY }}
+          
+          sed -i "s|quarkus-auth-service:latest|${REGISTRY}/ecommerce-auth:$TAG|g" infra/aks/auth-deployment.yaml
+          sed -i "s|quarkus-product-service:latest|${REGISTRY}/ecommerce-product:$TAG|g" infra/aks/product-deployment.yaml
+          sed -i "s|quarkus-cart-service:latest|${REGISTRY}/ecommerce-cart:$TAG|g" infra/aks/cart-deployment.yaml
+          sed -i "s|quarkus-order-service:latest|${REGISTRY}/ecommerce-order:$TAG|g" infra/aks/order-deployment.yaml
+          sed -i "s|dotnet-payment-service:latest|${REGISTRY}/ecommerce-payment:$TAG|g" infra/aks/payment-deployment.yaml
+          sed -i "s|dotnet-notification-service:latest|${REGISTRY}/ecommerce-notification:$TAG|g" infra/aks/notification-deployment.yaml
+
+          kubectl apply -f infra/aks/
+
+      - name: Verify deployment
+        run: kubectl get pods -o wide

@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dotnet-payment-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dotnet-payment-service
+  template:
+    metadata:
+      labels:
+        app: dotnet-payment-service
+    spec:
+      containers:
+        - name: dotnet-payment-service
+          image: dotnet-payment-service:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: Production
+          imagePullPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dotnet-payment-service
+spec:
+  selector:
+    app: dotnet-payment-service
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP

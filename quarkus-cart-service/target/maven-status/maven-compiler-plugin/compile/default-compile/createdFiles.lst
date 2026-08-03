@@ -1,0 +1,8 @@
+com/ecommerce/cart/client/ProductServiceClient.class
+com/ecommerce/cart/Cart.class
+com/ecommerce/cart/CartResource.class
+com/ecommerce/cart/AddItemRequest.class
+com/ecommerce/cart/client/ProductView.class
+com/ecommerce/cart/CartService.class
+com/ecommerce/cart/Cart$CartItem.class
+com/ecommerce/common/GlobalExceptionMapper.class
