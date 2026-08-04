@@ -103,9 +103,7 @@ jobs:
         uses: azure/setup-kubectl@v4
 
       - name: Set context to AKS cluster
-        uses: azure/aks-set-context@v4
-        with:
-          creds: ${{ secrets.AKS_CREDENTIALS }}
+        run: az aks get-credentials --name ecommerce-aks --resource-group ecommerce-rg --admin --overwrite-existing
 
       - name: Deploy to AKS
         run: |
