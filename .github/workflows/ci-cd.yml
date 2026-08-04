@@ -105,6 +105,10 @@ jobs:
       - name: Set context to AKS cluster
         run: az aks get-credentials --name ecommerce-aks --resource-group ecommerce-rg --admin --overwrite-existing
 
+      - name: Attach ACR to AKS
+        run: |
+          az aks update --name ecommerce-aks --resource-group ecommerce-rg --attach-acr ${{ env.ACR_NAME }}
+
       - name: Create JWT keys secret
         run: |
           kubectl create secret generic jwt-keys \
