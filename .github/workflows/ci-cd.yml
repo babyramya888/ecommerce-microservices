@@ -105,9 +105,15 @@ jobs:
       - name: Set context to AKS cluster
         run: az aks get-credentials --name ecommerce-aks --resource-group ecommerce-rg --admin --overwrite-existing
 
-      - name: Attach ACR to AKS
+      - name: Create ACR image pull secret
         run: |
-          az aks update --name ecommerce-aks --resource-group ecommerce-rg --attach-acr ${{ env.ACR_NAME }}
+          kubectl create secret docker-registry acr-secret \
+            --docker-server=${{ env.REGISTRY }} \
+            --docker-username=${{ secrets.ACR_USERNAME }} \
+            --docker-password=${{ secrets.ACR_PASSWORD }} \
+            --docker-email=admin@example.com \
+            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "acr-secret"}]}'
 
       - name: Create JWT keys secret
         run: |
