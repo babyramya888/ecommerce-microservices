@@ -124,6 +124,7 @@ jobs:
           sed -i "s|dotnet-payment-service:latest|${REGISTRY}/ecommerce-payment:$TAG|g" infra/aks/payment-deployment.yaml
           sed -i "s|dotnet-notification-service:latest|${REGISTRY}/ecommerce-notification:$TAG|g" infra/aks/notification-deployment.yaml
 
+          kubectl delete --ignore-not-found=true -f infra/aks/auth-deployment.yaml -f infra/aks/product-deployment.yaml -f infra/aks/cart-deployment.yaml -f infra/aks/order-deployment.yaml 2>/dev/null || true
           kubectl apply -f infra/aks/
 
       - name: Verify deployment
