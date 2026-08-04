@@ -105,6 +105,13 @@ jobs:
       - name: Set context to AKS cluster
         run: az aks get-credentials --name ecommerce-aks --resource-group ecommerce-rg --admin --overwrite-existing
 
+      - name: Create JWT keys secret
+        run: |
+          kubectl create secret generic jwt-keys \
+            --from-file=privateKey.pem=quarkus-auth-service/src/main/resources/privateKey.pem \
+            --from-file=publicKey.pem=quarkus-auth-service/src/main/resources/publicKey.pem \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Deploy to AKS
         run: |
           TAG=${{ github.sha }}

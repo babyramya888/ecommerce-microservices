@@ -31,12 +31,16 @@ spec:
               value: file:///app/publicKey.pem
           volumeMounts:
             - name: jwt-keys
-              mountPath: /app/
+              mountPath: /app/privateKey.pem
+              subPath: privateKey.pem
+            - name: jwt-keys
+              mountPath: /app/publicKey.pem
+              subPath: publicKey.pem
           imagePullPolicy: Always
-      volumes:
-        - name: jwt-keys
-          secret:
-            secretName: jwt-keys
+          volumes:
+            - name: jwt-keys
+              secret:
+                secretName: jwt-keys
 ---
 apiVersion: v1
 kind: Service
