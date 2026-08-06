@@ -125,14 +125,15 @@ jobs:
       - name: Deploy to AKS
         run: |
           TAG=${{ github.sha }}
+          TAG_SHORT=${TAG::7}
           REGISTRY=${{ env.REGISTRY }}
           
-          sed -i "s|quarkus-auth-service:latest|${REGISTRY}/ecommerce-auth:$TAG|g" infra/aks/auth-deployment.yaml
-          sed -i "s|quarkus-product-service:latest|${REGISTRY}/ecommerce-product:$TAG|g" infra/aks/product-deployment.yaml
-          sed -i "s|quarkus-cart-service:latest|${REGISTRY}/ecommerce-cart:$TAG|g" infra/aks/cart-deployment.yaml
-          sed -i "s|quarkus-order-service:latest|${REGISTRY}/ecommerce-order:$TAG|g" infra/aks/order-deployment.yaml
-          sed -i "s|dotnet-payment-service:latest|${REGISTRY}/ecommerce-payment:$TAG|g" infra/aks/payment-deployment.yaml
-          sed -i "s|dotnet-notification-service:latest|${REGISTRY}/ecommerce-notification:$TAG|g" infra/aks/notification-deployment.yaml
+          sed -i "s|quarkus-auth-service:latest|${REGISTRY}/ecommerce-auth:${TAG_SHORT}|g" infra/aks/auth-deployment.yaml
+          sed -i "s|quarkus-product-service:latest|${REGISTRY}/ecommerce-product:${TAG_SHORT}|g" infra/aks/product-deployment.yaml
+          sed -i "s|quarkus-cart-service:latest|${REGISTRY}/ecommerce-cart:${TAG_SHORT}|g" infra/aks/cart-deployment.yaml
+          sed -i "s|quarkus-order-service:latest|${REGISTRY}/ecommerce-order:${TAG_SHORT}|g" infra/aks/order-deployment.yaml
+          sed -i "s|dotnet-payment-service:latest|${REGISTRY}/ecommerce-payment:${TAG_SHORT}|g" infra/aks/payment-deployment.yaml
+          sed -i "s|dotnet-notification-service:latest|${REGISTRY}/ecommerce-notification:${TAG_SHORT}|g" infra/aks/notification-deployment.yaml
 
           kubectl delete --ignore-not-found=true -f infra/aks/auth-deployment.yaml -f infra/aks/product-deployment.yaml -f infra/aks/cart-deployment.yaml -f infra/aks/order-deployment.yaml 2>/dev/null || true
           kubectl apply -f infra/aks/
